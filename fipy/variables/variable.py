@@ -11,6 +11,7 @@ from fipy.tools.dimensions import physicalField
 from fipy.tools import numerix
 from fipy.tools import parser
 from fipy.tools import inline
+import cupy as cp
 
 __all__ = ["Variable"]
 from future.utils import text_to_native_str
@@ -51,7 +52,7 @@ class Variable(object):
     def __new__(cls, *args, **kwds):
         return object.__new__(cls)
 
-    def __init__(self, value=0., unit=None, array=None, name='', cached=1):
+    def __init__(self, value=0., unit=None, array=None, name='', cached=1, isGPU=0):
         """
         Create a `Variable`.
 
@@ -75,10 +76,13 @@ class Variable(object):
             The user-readable name of the `Variable`
         cached : bool
             whether to cache or always recalculate the value
+        gpu : int
+            Indicate whether value will be stored in CPU (0) or GPU (1)
         """
 
         self.requiredVariables = []
         self.subscribedVariables = []
+        self.isGPU = isGPU
 
         if isinstance(value, Variable):
             value = value.value
@@ -94,6 +98,11 @@ class Variable(object):
 
         self.stale = 1
         self._markFresh()
+
+        if self.isGPU == 0:
+            self.valueGPU = None
+        else:
+            self.valueGPU = cp.asarray(self.value)
 
 ##    __array_priority__ and __array_wrap__ are required to override
 ##    the default behavior of numpy. If a numpy array and a Variable
@@ -659,7 +668,10 @@ class Variable(object):
                 array[:] = value
                 value = array
             elif type(value) not in (type(None), type(numerix.array(1)), type(numerix.MA.array(1))):
-                value = numerix.array(value)
+                if self.isGPU == 1:
+                    value = cp.array(value)
+                else:
+                    value = numerix.array(value)
 ##                 # numerix does strange things with really large integers.
 ##                 # Even though Python knows how to do arithmetic with them,
 ##                 # Numeric converts them to 'O' objects that it then doesn't understand.

@@ -19,7 +19,7 @@ class _MeshVariable(Variable):
     Abstract base class for a `Variable` that is defined on a mesh
     """
     def __init__(self, mesh, name='', value=0., rank=None, elementshape=None,
-                 unit=None, cached=1):
+                 unit=None, cached=1, isGPU=0):
         """
         Parameters
         ----------
@@ -37,6 +37,9 @@ class _MeshVariable(Variable):
             Default: `rank * (mesh.dim,)`
         unit : str or ~fipy.tools.dimensions.physicalField.PhysicalUnit
             The physical units of the variable
+        gpu  : int
+            Indicate whether value will be assigned in GPU (1) or CPU (0)
+            Default: 0
         """
         if isinstance(value, (list, tuple)):
             value = numerix.array(value)
@@ -108,12 +111,12 @@ class _MeshVariable(Variable):
                 value = value[..., numerix.newaxis]
 
         Variable.__init__(self, name=name, value=value, unit=unit,
-                          array=array, cached=cached)
+                          array=array, cached=cached, isGPU=isGPU)
 
     def _globalToLocalValue(self, value):
         if value is not None:
             if not isinstance(value, Variable):
-                value = _Constant(value)
+            	value = _Constant(value)
             valueShape = value.shape
             if valueShape is not () and valueShape[-1] == self._globalNumberOfElements:
                 if valueShape[-1] != 0:

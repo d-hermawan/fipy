@@ -4,6 +4,7 @@ __docformat__ = 'restructuredtext'
 from fipy.variables.meshVariable import _MeshVariable
 from fipy.tools import numerix
 from fipy.tools.decorators import deprecate
+import cupy as cp
 
 __all__ = ["CellVariable"]
 from future.utils import text_to_native_str
@@ -31,12 +32,13 @@ class CellVariable(_MeshVariable):
 
     """
 
-    def __init__(self, mesh, name='', value=0., rank=None, elementshape=None, unit=None, hasOld=0):
+    def __init__(self, mesh, name='', value=0., rank=None, elementshape=None, unit=None, hasOld=0, isGPU=0):
         _MeshVariable.__init__(self, mesh=mesh, name=name, value=value,
-                               rank=rank, elementshape=elementshape, unit=unit)
+                               rank=rank, elementshape=elementshape, unit=unit, isGPU=isGPU)
 
         if hasOld:
             self._old = self.copy()
+            # hopefully this already updates the gpuArray
         else:
             self._old = None
 
@@ -469,6 +471,13 @@ class CellVariable(_MeshVariable):
             raise AssertionError('The updateOld method requires the CellVariable to have an old value. Set hasOld to True when instantiating the CellVariable.')
         else:
             self._old.value = self.value.copy()
+            self._old.valueGPU = self.valueGPU
+            # note: if using valueGPU.copy, the memory pool
+            # is increased by valueGPU bytes, leaving an extra
+            # memory burden in the GPU and may requires
+            # cupy.get_default_memory_pool().free_all_blocks()
+            # cupy.get_default_pinned_memory_pool().free_all_blocks()
+            # to remove the unused GPU memory
 
     def _resetToOld(self):
         if self._old is not None:

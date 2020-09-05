@@ -9,6 +9,7 @@ from fipy import input
 from fipy.tools import numerix
 from fipy.terms import AbstractBaseClassError
 from fipy.terms import SolutionVariableRequiredError
+import cupy as cp
 
 __all__ = ["Term"]
 from future.utils import text_to_native_str
@@ -130,6 +131,10 @@ class Term(object):
                                                            buildExplicitIfOther=self._buildExplcitIfOther)
 
         self._buildCache(matrix, RHSvector)
+        
+        # Keep the var in GPU if called upon
+        if var.isGPU == 1:
+            var.valueGPU = cp.array(var.value)
 
         solver._storeMatrix(var=var, matrix=matrix, RHSvector=RHSvector)
 
